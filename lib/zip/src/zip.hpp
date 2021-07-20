@@ -188,7 +188,7 @@ namespace zip {
             }
         };
     }
-    static zip_result inflate(io::stream* in,io::stream* out,long long int in_size=-1) {
+    static zip_result inflate(io::stream* in,io::stream* out,long long int in_size=-1,void*(*allocator)(size_t)=malloc,void(*deallocator)(void*)=free) {
         struct context final {
             io::stream* in;
             long long int in_pos;
@@ -205,9 +205,6 @@ namespace zip {
             helpers::huffman length;
             inline context() {
 
-            }
-            ~context() {
-                delete this;
             }
             int read_in() {
                 uint8_t b=0;
@@ -444,7 +441,7 @@ namespace zip {
             return zip_result::invalid_argument;
         }
         zip_result r;
-        context* ctx = new context();
+        context* ctx = (context*)allocator(sizeof(context));
         if(nullptr==ctx) {
             return zip_result::out_of_memory;
         }
@@ -468,6 +465,7 @@ namespace zip {
             }
             else if (type == 3)
             {
+                deallocator(ctx);
                 // invalid block type
                 return zip_result::invalid_archive;
             }
@@ -478,10 +476,12 @@ namespace zip {
                     // use fixed code lengths
                     r=ctx->length.initialize (helpers::default_length,288);
                     if(zip_result::success!=r) {
+                        deallocator(ctx);
                         return r;
                     }
                     r=ctx->distance.initialize(helpers::default_distance,32);
                     if(zip_result::success!=r) {
+                        deallocator(ctx);
                         return r;
                     }
                 }
@@ -489,11 +489,13 @@ namespace zip {
                 {
                     r=ctx->recompute();
                     if(zip_result::success!=r) {
+                        deallocator(ctx);
                         return r;
                     }
                 }
                 r=ctx->parse_huffman_block();
                 if(zip_result::success!=r) {
+                    deallocator(ctx);
                     return r;
                 }
             }
@@ -501,9 +503,11 @@ namespace zip {
         while(ctx->out_buffer_count!=0) {
             uint8_t b = (uint8_t)ctx->pop_out_buffer();
             if(1!=ctx->out->write(b)) {
+                deallocator(ctx);
                 return zip_result::io_error;
             }
         }
+        deallocator(ctx);
         return zip_result::success;
     }
     class archive;
@@ -574,7 +578,7 @@ namespace zip {
                 }
                 return zip_result::success;
             }
-            return inflate(m_stream,out_stream,m_compressed_size);
+            return inflate(m_stream,out_stream,m_compressed_size,allocator,deallocator);
         }
     };
     class archive final {
