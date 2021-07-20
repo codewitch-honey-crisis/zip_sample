@@ -440,7 +440,7 @@ namespace zip {
                 return zip_result::success;
             }
         };
-        if(nullptr==in || in->caps().read==0 || nullptr==out || out->caps().write==0 || out->caps().seek==0) {
+        if(nullptr==in || in->caps().read==0 || nullptr==out || out->caps().write==0) {
             return zip_result::invalid_argument;
         }
         zip_result r;
@@ -714,7 +714,7 @@ public:
         inline size_t entries_size() const {
             return m_entries_size;
         }
-        zip_result entry(size_t index,archive_entry* out_entry) {
+        zip_result entry(size_t index,archive_entry* out_entry) const {
             if(nullptr==out_entry) {
                 return zip_result::invalid_argument;
             }
